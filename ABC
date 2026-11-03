@@ -1,0 +1,556 @@
+--// ============================================================
+--// ABANG HUB - Full Script (1 Key per Device)
+--// ============================================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+--// ============================================================
+--// 100 คีย์
+--// ============================================================
+local VALID_KEYS = {
+    ["ABANGHUB-Q7XM"] = true, ["ABANGHUB-3KVP"] = true, ["ABANGHUB-N9DW"] = true,
+    ["ABANGHUB-5RJC"] = true, ["ABANGHUB-Z2TF"] = true, ["ABANGHUB-8HML"] = true,
+    ["ABANGHUB-V4BQ"] = true, ["ABANGHUB-6YNK"] = true, ["ABANGHUB-P1WS"] = true,
+    ["ABANGHUB-9GRD"] = true, ["ABANGHUB-C5XJ"] = true, ["ABANGHUB-2MVH"] = true,
+    ["ABANGHUB-T8QK"] = true, ["ABANGHUB-7LZN"] = true, ["ABANGHUB-F3BW"] = true,
+    ["ABANGHUB-K6YM"] = true, ["ABANGHUB-4DXR"] = true, ["ABANGHUB-S9VC"] = true,
+    ["ABANGHUB-H2JN"] = true, ["ABANGHUB-8TQF"] = true, ["ABANGHUB-W5LZ"] = true,
+    ["ABANGHUB-1BKR"] = true, ["ABANGHUB-N7DX"] = true, ["ABANGHUB-6GVM"] = true,
+    ["ABANGHUB-J4PS"] = true, ["ABANGHUB-9YCH"] = true, ["ABANGHUB-R3FW"] = true,
+    ["ABANGHUB-2LQT"] = true, ["ABANGHUB-M8BK"] = true, ["ABANGHUB-5ZVN"] = true,
+    ["ABANGHUB-V1XJ"] = true, ["ABANGHUB-7KDR"] = true, ["ABANGHUB-P6HT"] = true,
+    ["ABANGHUB-3GQW"] = true, ["ABANGHUB-Y9MC"] = true, ["ABANGHUB-4FZN"] = true,
+    ["ABANGHUB-C8LK"] = true, ["ABANGHUB-6RJP"] = true, ["ABANGHUB-N2XV"] = true,
+    ["ABANGHUB-9BWD"] = true, ["ABANGHUB-H5QM"] = true, ["ABANGHUB-1TZS"] = true,
+    ["ABANGHUB-8KRL"] = true, ["ABANGHUB-J7FN"] = true, ["ABANGHUB-3PVC"] = true,
+    ["ABANGHUB-W4YX"] = true, ["ABANGHUB-6MDH"] = true, ["ABANGHUB-Q9BK"] = true,
+    ["ABANGHUB-2ZJW"] = true, ["ABANGHUB-T5GN"] = true, ["ABANGHUB-7LXF"] = true,
+    ["ABANGHUB-F8CQ"] = true, ["ABANGHUB-4KVD"] = true, ["ABANGHUB-S1MH"] = true,
+    ["ABANGHUB-9XWP"] = true, ["ABANGHUB-N6BJ"] = true, ["ABANGHUB-3YRT"] = true,
+    ["ABANGHUB-H7QK"] = true, ["ABANGHUB-5DVN"] = true, ["ABANGHUB-P2LM"] = true,
+    ["ABANGHUB-8GZX"] = true, ["ABANGHUB-V6CW"] = true, ["ABANGHUB-1JQH"] = true,
+    ["ABANGHUB-M4BF"] = true, ["ABANGHUB-9TKP"] = true, ["ABANGHUB-R8DN"] = true,
+    ["ABANGHUB-2XVL"] = true, ["ABANGHUB-C7HW"] = true, ["ABANGHUB-6FQJ"] = true,
+    ["ABANGHUB-K3ZB"] = true, ["ABANGHUB-5MNP"] = true, ["ABANGHUB-Y1LR"] = true,
+    ["ABANGHUB-4WGX"] = true, ["ABANGHUB-8CSD"] = true, ["ABANGHUB-J9TF"] = true,
+    ["ABANGHUB-3RVK"] = true, ["ABANGHUB-N5HQ"] = true, ["ABANGHUB-7BZM"] = true,
+    ["ABANGHUB-F2XW"] = true, ["ABANGHUB-1KVC"] = true, ["ABANGHUB-T9GJ"] = true,
+    ["ABANGHUB-6ZNP"] = true, ["ABANGHUB-P4DR"] = true, ["ABANGHUB-2YLF"] = true,
+    ["ABANGHUB-V8QK"] = true, ["ABANGHUB-5HBX"] = true, ["ABANGHUB-M7CT"] = true,
+    ["ABANGHUB-9FJW"] = true, ["ABANGHUB-R3NV"] = true, ["ABANGHUB-1DPZ"] = true,
+    ["ABANGHUB-C6YQ"] = true, ["ABANGHUB-8LTK"] = true, ["ABANGHUB-K5WX"] = true,
+    ["ABANGHUB-4JMN"] = true, ["ABANGHUB-N2RF"] = true, ["ABANGHUB-7GHQ"] = true,
+    ["ABANGHUB-S9BW"] = true, ["ABANGHUB-3TZC"] = true,
+}
+
+--// Config
+local Config = {
+    Enabled = false, LockEnabled = false, HardLock = true,
+    FOVRadius = 60, WallCheck = true, SeeAllMap = true,
+    Color = Color3.fromRGB(0, 255, 0),
+}
+local FOV_MIN, FOV_MAX = 10, 100
+
+--// ============================================================
+--// DEVICE ID + ไฟล์เก็บสถานะ
+--// ============================================================
+local DEVICE_FILE  = "ABANG_HUB_device.txt"      -- เก็บ Device ID
+local BIND_FILE    = "ABANG_HUB_bindings.txt"    -- เก็บ key|deviceID
+local USED_FILE    = "ABANG_HUB_used.txt"        -- เก็บ key ที่ใช้แล้ว
+
+--// สร้าง/โหลด Device ID (ไม่ซ้ำต่อเครื่อง)
+local function getDeviceId()
+    if not (readfile and writefile and isfile) then
+        return "unknown_device"
+    end
+    if isfile(DEVICE_FILE) then
+        local ok, data = pcall(readfile, DEVICE_FILE)
+        if ok and data and #data > 0 then
+            return data:gsub("%s+", "")
+        end
+    end
+    -- สร้างใหม่
+    local newId = tostring(os.time()) .. "_" .. tostring(math.random(100000, 999999)) .. "_" .. tostring(math.random(100000, 999999))
+    pcall(writefile, DEVICE_FILE, newId)
+    return newId
+end
+
+local DeviceID = getDeviceId()
+
+--// โหลด bindings (key|deviceID)
+local function loadBindings()
+    local map = {}   -- key -> deviceID
+    if readfile and isfile and isfile(BIND_FILE) then
+        local ok, data = pcall(readfile, BIND_FILE)
+        if ok and data then
+            for line in data:gmatch("[^\r\n]+") do
+                local key, dev = line:match("^(.-)|(.+)$")
+                if key and dev then
+                    map[key:gsub("%s+", "")] = dev:gsub("%s+", "")
+                end
+            end
+        end
+    end
+    return map
+end
+
+local function saveBinding(key, devId)
+    if appendfile then
+        pcall(appendfile, BIND_FILE, key .. "|" .. devId .. "\n")
+    end
+end
+
+local Bindings = loadBindings()
+
+--// โหลด used
+local function loadUsed()
+    local used = {}
+    if readfile and isfile and isfile(USED_FILE) then
+        local ok, data = pcall(readfile, USED_FILE)
+        if ok and data then
+            for line in data:gmatch("[^\r\n]+") do
+                used[line:gsub("%s+", "")] = true
+            end
+        end
+    end
+    return used
+end
+local UsedKeys = loadUsed()
+
+--// ตรวจว่าเครื่องนี้ผูกคีย์อะไรไว้แล้วหรือยัง
+local function findBoundKeyForDevice()
+    for key, dev in pairs(Bindings) do
+        if dev == DeviceID then
+            return key
+        end
+    end
+    return nil
+end
+
+--// ============================================================
+--// Key GUI
+--// ============================================================
+local KeyGui = Instance.new("ScreenGui")
+KeyGui.Name = "ABANG_HUB_Key"
+KeyGui.ResetOnSpawn = false
+KeyGui.Parent = game:GetService("CoreGui")
+
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 260, 0, 170)
+KeyFrame.Position = UDim2.new(0.5, -130, 0.5, -85)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+KeyFrame.BorderSizePixel = 0
+KeyFrame.Parent = KeyGui
+Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
+local ks = Instance.new("UIStroke", KeyFrame)
+ks.Color = Color3.fromRGB(0, 255, 0); ks.Thickness = 1.5
+
+local KeyTitle = Instance.new("TextLabel")
+KeyTitle.Size = UDim2.new(1, 0, 0, 36)
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.Text = "ABANG HUB"
+KeyTitle.TextColor3 = Color3.fromRGB(0, 255, 0)
+KeyTitle.Font = Enum.Font.GothamBold
+KeyTitle.TextSize = 20
+KeyTitle.Parent = KeyFrame
+
+local KeySub = Instance.new("TextLabel")
+KeySub.Size = UDim2.new(1, 0, 0, 20)
+KeySub.Position = UDim2.new(0, 0, 0, 36)
+KeySub.BackgroundTransparency = 1
+KeySub.Text = "1 คีย์ = 1 เครื่อง (ไม่ต้องใส่ซ้ำ)"
+KeySub.TextColor3 = Color3.fromRGB(180, 180, 180)
+KeySub.Font = Enum.Font.Gotham
+KeySub.TextSize = 11
+KeySub.Parent = KeyFrame
+
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(0.85, 0, 0, 32)
+KeyBox.Position = UDim2.new(0.075, 0, 0, 62)
+KeyBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+KeyBox.TextColor3 = Color3.fromRGB(0, 255, 0)
+KeyBox.PlaceholderText = "ABANGHUB-XXXX"
+KeyBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.TextSize = 14
+KeyBox.ClearTextOnFocus = false
+KeyBox.Parent = KeyFrame
+Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
+
+local KeyBtn = Instance.new("TextButton")
+KeyBtn.Size = UDim2.new(0.85, 0, 0, 32)
+KeyBtn.Position = UDim2.new(0.075, 0, 0, 102)
+KeyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+KeyBtn.Text = "ยืนยัน"
+KeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyBtn.Font = Enum.Font.GothamBold
+KeyBtn.TextSize = 14
+KeyBtn.Parent = KeyFrame
+Instance.new("UICorner", KeyBtn).CornerRadius = UDim.new(0, 6)
+
+local KeyStatus = Instance.new("TextLabel")
+KeyStatus.Size = UDim2.new(1, 0, 0, 16)
+KeyStatus.Position = UDim2.new(0, 0, 1, -20)
+KeyStatus.BackgroundTransparency = 1
+KeyStatus.Text = ""
+KeyStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
+KeyStatus.Font = Enum.Font.Gotham
+KeyStatus.TextSize = 11
+KeyStatus.Parent = KeyFrame
+
+--// ============================================================
+--// Main UI
+--// ============================================================
+local function buildMainUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "ABANG_HUB"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = game:GetService("CoreGui")
+
+    local ToggleUI = Instance.new("TextButton")
+    ToggleUI.Size = UDim2.new(0, 110, 0, 32)
+    ToggleUI.Position = UDim2.new(0, 20, 0, 20)
+    ToggleUI.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    ToggleUI.Text = "ABANG HUB"
+    ToggleUI.TextColor3 = Color3.fromRGB(0, 255, 0)
+    ToggleUI.Font = Enum.Font.GothamBold
+    ToggleUI.TextSize = 14
+    ToggleUI.Parent = ScreenGui
+    Instance.new("UICorner", ToggleUI).CornerRadius = UDim.new(0, 8)
+    local ts = Instance.new("UIStroke", ToggleUI)
+    ts.Color = Color3.fromRGB(0, 255, 0); ts.Thickness = 1
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 200, 0, 285)
+    Frame.Position = UDim2.new(0, 20, 0, 58)
+    Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Frame.BackgroundTransparency = 0.15
+    Frame.BorderSizePixel = 0
+    Frame.Parent = ScreenGui
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+    local fs = Instance.new("UIStroke", Frame)
+    fs.Color = Color3.fromRGB(0, 255, 0); fs.Thickness = 1
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.BackgroundTransparency = 1
+    Title.Text = "ABANG HUB"
+    Title.TextColor3 = Color3.fromRGB(0, 255, 0)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 16
+    Title.Parent = Frame
+
+    local MinimizeBtn = Instance.new("TextButton")
+    MinimizeBtn.Size = UDim2.new(0, 22, 0, 22)
+    MinimizeBtn.Position = UDim2.new(1, -28, 0, 4)
+    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    MinimizeBtn.Text = "–"
+    MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MinimizeBtn.Font = Enum.Font.GothamBold
+    MinimizeBtn.TextSize = 14
+    MinimizeBtn.Parent = Frame
+    Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 6)
+
+    local function makeBtn(text, y)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0.9, 0, 0, 28)
+        b.Position = UDim2.new(0.05, 0, 0, y)
+        b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        b.Text = text
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        b.Font = Enum.Font.Gotham
+        b.TextSize = 13
+        b.Parent = Frame
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+        return b
+    end
+
+    local ToggleBtn = makeBtn("ESP: OFF", 34)
+    local SeeAllBtn = makeBtn("See All Map: ON", 66)
+    local LockBtn   = makeBtn("Head Lock: OFF", 98)
+    local HardBtn   = makeBtn("Hard Lock: ON", 130)
+    local WallBtn   = makeBtn("Wall Check: ON", 162)
+
+    local FOVLabel = Instance.new("TextLabel")
+    FOVLabel.Size = UDim2.new(0.45, 0, 0, 26)
+    FOVLabel.Position = UDim2.new(0.05, 0, 0, 200)
+    FOVLabel.BackgroundTransparency = 1
+    FOVLabel.Text = "FOV (10-100):"
+    FOVLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    FOVLabel.Font = Enum.Font.Gotham
+    FOVLabel.TextSize = 12
+    FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
+    FOVLabel.Parent = Frame
+
+    local FOVBox = Instance.new("TextBox")
+    FOVBox.Size = UDim2.new(0.4, 0, 0, 26)
+    FOVBox.Position = UDim2.new(0.52, 0, 0, 200)
+    FOVBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    FOVBox.TextColor3 = Color3.fromRGB(0, 255, 0)
+    FOVBox.PlaceholderText = "10-100"
+    FOVBox.Text = tostring(Config.FOVRadius)
+    FOVBox.Font = Enum.Font.Gotham
+    FOVBox.TextSize = 13
+    FOVBox.ClearTextOnFocus = false
+    FOVBox.Parent = Frame
+    Instance.new("UICorner", FOVBox).CornerRadius = UDim.new(0, 6)
+
+    local Note = Instance.new("TextLabel")
+    Note.Size = UDim2.new(0.9, 0, 0, 20)
+    Note.Position = UDim2.new(0.05, 0, 0, 236)
+    Note.BackgroundTransparency = 1
+    Note.Text = "By ABANG HUB"
+    Note.TextColor3 = Color3.fromRGB(120, 120, 120)
+    Note.Font = Enum.Font.Gotham
+    Note.TextSize = 11
+    Note.Parent = Frame
+
+    local uiOpen = true
+    local function setUIOpen(state)
+        uiOpen = state
+        Frame.Visible = state
+        ToggleUI.Text = state and "ABANG HUB" or "ABANG HUB +"
+    end
+    ToggleUI.MouseButton1Click:Connect(function() setUIOpen(not uiOpen) end)
+    MinimizeBtn.MouseButton1Click:Connect(function() setUIOpen(false) end)
+
+    local function applyFOV(value)
+        local num = tonumber(value) or Config.FOVRadius
+        num = math.clamp(math.floor(num + 0.5), FOV_MIN, FOV_MAX)
+        Config.FOVRadius = num
+        FOVBox.Text = tostring(num)
+    end
+    FOVBox.FocusLost:Connect(function() applyFOV(FOVBox.Text) end)
+
+    local circle = Drawing.new("Circle")
+    circle.Thickness = 2
+    circle.NumSides = 60
+    circle.Radius = Config.FOVRadius
+    circle.Filled = false
+    circle.Transparency = 1
+    circle.Color = Config.Color
+    circle.Visible = false
+
+    local highlights = {}
+    local function applyHighlight(char)
+        if not char or highlights[char] then return end
+        local hl = Instance.new("Highlight")
+        hl.FillColor = Config.Color
+        hl.OutlineColor = Config.Color
+        hl.FillTransparency = 0.7
+        hl.OutlineTransparency = 0
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Adornee = char
+        hl.Parent = char
+        highlights[char] = hl
+    end
+    local function removeHighlight(char)
+        if highlights[char] then
+            highlights[char]:Destroy()
+            highlights[char] = nil
+        end
+    end
+    local function clearAllHighlights()
+        for _, hl in pairs(highlights) do hl:Destroy() end
+        highlights = {}
+    end
+
+    local function inRange(headPart)
+        if Config.SeeAllMap then return true end
+        return (headPart.Position - Camera.CFrame.Position).Magnitude <= Config.FOVRadius
+    end
+
+    local function isVisible(headPart)
+        if not Config.WallCheck then return true end
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = { LocalPlayer.Character, headPart.Parent }
+        return Workspace:Raycast(Camera.CFrame.Position, headPart.Position - Camera.CFrame.Position, params) == nil
+    end
+
+    local function getTarget()
+        local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        local best, bestDist = nil, math.huge
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local head = plr.Character:FindFirstChild("Head")
+                local hum  = plr.Character:FindFirstChildOfClass("Humanoid")
+                if head and hum and hum.Health > 0 then
+                    local sp, onScreen = Camera:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        local d = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+                        if d <= Config.FOVRadius and d < bestDist and isVisible(head) then
+                            best, bestDist = plr, d
+                        end
+                    end
+                end
+            end
+        end
+        return best
+    end
+
+    local function lockToHead(plr)
+        if not plr or not plr.Character then return end
+        local head = plr.Character:FindFirstChild("Head")
+        if not head then return end
+        if Config.HardLock then
+            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, head.Position)
+        else
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, head.Position), 0.35)
+        end
+    end
+
+    RunService.RenderStepped:Connect(function()
+        circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        circle.Radius = Config.FOVRadius
+        circle.Color = Config.Color
+        circle.Visible = Config.Enabled
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if not Config.Enabled then
+            if next(highlights) then clearAllHighlights() end
+            return
+        end
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local head = plr.Character:FindFirstChild("Head")
+                local hum  = plr.Character:FindFirstChildOfClass("Humanoid")
+                if head and hum and hum.Health > 0 then
+                    if Config.SeeAllMap or (inRange(head) and isVisible(head)) then
+                        applyHighlight(plr.Character)
+                    else
+                        removeHighlight(plr.Character)
+                    end
+                else
+                    removeHighlight(plr.Character)
+                end
+            end
+        end
+        for char in pairs(highlights) do
+            if not char.Parent or not char:FindFirstChildOfClass("Humanoid") then
+                removeHighlight(char)
+            end
+        end
+        if Config.LockEnabled then
+            local target = getTarget()
+            if target then lockToHead(target) end
+        end
+    end)
+
+    ToggleBtn.MouseButton1Click:Connect(function()
+        Config.Enabled = not Config.Enabled
+        ToggleBtn.Text = "ESP: " .. (Config.Enabled and "ON" or "OFF")
+        ToggleBtn.BackgroundColor3 = Config.Enabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+        if not Config.Enabled then clearAllHighlights() end
+    end)
+
+    SeeAllBtn.MouseButton1Click:Connect(function()
+        Config.SeeAllMap = not Config.SeeAllMap
+        SeeAllBtn.Text = "See All Map: " .. (Config.SeeAllMap and "ON" or "OFF")
+        SeeAllBtn.BackgroundColor3 = Config.SeeAllMap and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+        if not Config.SeeAllMap then
+            for char in pairs(highlights) do
+                local head = char:FindFirstChild("Head")
+                if not head or not inRange(head) or not isVisible(head) then
+                    removeHighlight(char)
+                end
+            end
+        end
+    end)
+
+    LockBtn.MouseButton1Click:Connect(function()
+        Config.LockEnabled = not Config.LockEnabled
+        LockBtn.Text = "Head Lock: " .. (Config.LockEnabled and "ON" or "OFF")
+        LockBtn.BackgroundColor3 = Config.LockEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+    end)
+
+    HardBtn.MouseButton1Click:Connect(function()
+        Config.HardLock = not Config.HardLock
+        HardBtn.Text = "Hard Lock: " .. (Config.HardLock and "ON" or "OFF")
+        HardBtn.BackgroundColor3 = Config.HardLock and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+    end)
+
+    WallBtn.MouseButton1Click:Connect(function()
+        Config.WallCheck = not Config.WallCheck
+        WallBtn.Text = "Wall Check: " .. (Config.WallCheck and "ON" or "OFF")
+    end)
+
+    Players.PlayerRemoving:Connect(function(plr)
+        if plr.Character then removeHighlight(plr.Character) end
+    end)
+end
+
+--// ============================================================
+--// ตรวจคีย์ (1 คีย์ = 1 เครื่อง)
+--// ============================================================
+local unlocked = false
+
+local function unlockNow(reason)
+    unlocked = true
+    KeyStatus.TextColor3 = Color3.fromRGB(0, 255, 0)
+    KeyStatus.Text = reason or "คีย์ถูกต้อง! กำลังโหลด..."
+    task.wait(0.5)
+    KeyGui:Destroy()
+    buildMainUI()
+end
+
+--// ขั้นแรก: ตรวจว่าเครื่องนี้เคยผูกคีย์ไว้แล้วหรือยัง
+local boundKey = findBoundKeyForDevice()
+if boundKey then
+    -- เครื่องนี้เคยผูกคีย์ → เข้าได้เลย ไม่ต้องใส่
+    KeyBox.Text = boundKey
+    KeyBox.TextEditable = false
+    KeyBtn.Text = "เข้าใช้งาน"
+    KeySub.Text = "เครื่องนี้ผูกคีย์แล้ว: " .. boundKey
+    KeyStatus.TextColor3 = Color3.fromRGB(0, 255, 0)
+    KeyStatus.Text = "เครื่องนี้เคยใส่คีย์แล้ว กำลังเข้า..."
+
+    task.spawn(function()
+        task.wait(0.8)
+        unlockNow("ยินดีต้อนรับกลับ! (ผูกคีย์แล้ว)")
+    end)
+else
+    -- ยังไม่เคยผูก → ให้ใส่คีย์
+    local function tryUnlock()
+        if unlocked then return end
+        local input = (KeyBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+
+        if input == "" then
+            KeyStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
+            KeyStatus.Text = "กรุณาใส่คีย์"
+            return
+        end
+
+        if not VALID_KEYS[input] then
+            KeyStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
+            KeyStatus.Text = "คีย์ไม่ถูกต้อง"
+            KeyBox.Text = ""
+            return
+        end
+
+        -- คีย์นี้ถูกเครื่องอื่นใช้ไปแล้วหรือยัง
+        if Bindings[input] and Bindings[input] ~= DeviceID then
+            KeyStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
+            KeyStatus.Text = "คีย์นี้ถูกเครื่องอื่นใช้แล้ว"
+            KeyBox.Text = ""
+            return
+        end
+
+        -- ผ่าน → ผูกคีย์กับเครื่องนี้
+        Bindings[input] = DeviceID
+        saveBinding(input, DeviceID)
+        UsedKeys[input] = true
+        if appendfile then pcall(appendfile, USED_FILE, input .. "\n") end
+
+        unlockNow("คีย์ถูกต้อง! ผูกกับเครื่องนี้แล้ว")
+    end
+
+    KeyBtn.MouseButton1Click:Connect(tryUnlock)
+    KeyBox.FocusLost:Connect(function(enter) if enter then tryUnlock() end end)
+    KeyBox:CaptureFocus()
+end
